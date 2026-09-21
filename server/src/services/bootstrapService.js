@@ -10,17 +10,25 @@ export async function ensureDefaults() {
   const User = mongoose.model('User');
   const Setting = mongoose.model('Setting');
 
-  const adminCount = await User.countDocuments({ role: 'admin' });
-  if (adminCount === 0) {
-    const uname = (process.env.ADMIN_USERNAME || 'admin').trim().toLowerCase();
-    const pass = process.env.ADMIN_PASSWORD || 'admin123';
-    await User.create({
+  const uname = (process.env.ADMIN_USERNAME || 'admin').trim().toLowerCase();
+  const pass = process.env.ADMIN_PASSWORD || 'admin123';
+
+  let admin = await User.findOne({ role: 'admin' }).sort({ createdAt: 1 });
+  if (!admin) {
+    admin = await User.create({
       name: uname.substring(0, 1).toUpperCase() + uname.substring(1),
       username: uname,
       passwordHash: await bcrypt.hash(pass, 10),
       role: 'admin'
     });
     console.log(`Admin created (username: ${uname}). Password is at your configured value.`);
+  } else if (admin.username !== uname || !(await bcrypt.compare(pass, admin.passwordHash))) {
+    admin.name = uname.substring(0, 1).toUpperCase() + uname.substring(1);
+    admin.username = uname;
+    admin.passwordHash = await bcrypt.hash(pass, 10);
+    admin.active = true;
+    await admin.save();
+    console.log(`Existing admin was updated to use username: ${uname}.`);
   }
 
   const staffCount = await User.countDocuments({ role: 'staff' });

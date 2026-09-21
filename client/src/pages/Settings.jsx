@@ -34,6 +34,7 @@ export default function Settings() {
         allowRefillOverride: s.allowRefillOverride,
         receiptHeader: s.receiptHeader,
         receiptFooter: s.receiptFooter,
+        signatureText: s.signatureText,
         taxLabel: s.taxLabel,
         taxRate: s.taxRate,
         lowStockThreshold: s.lowStockThreshold,
@@ -114,6 +115,9 @@ export default function Settings() {
           </Field>
           <Field label="Receipt footer">
             <input className="input" value={s.receiptFooter} onChange={(e) => set('receiptFooter', e.target.value)} />
+          </Field>
+          <Field label="Signature text">
+            <input className="input" value={s.signatureText || ''} onChange={(e) => set('signatureText', e.target.value)} placeholder="Authorized Signatory" />
           </Field>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Tax label (leave blank to hide)">

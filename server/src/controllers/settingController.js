@@ -23,6 +23,7 @@ export const updateSettings = asyncHandler(async (req, res) => {
     'allowRefillOverride',
     'receiptHeader',
     'receiptFooter',
+    'signatureText',
     'taxLabel',
     'taxRate',
     'lowStockThreshold',
@@ -38,7 +39,7 @@ export const updateSettings = asyncHandler(async (req, res) => {
         const n = Number(req.body[k]);
         if (isNaN(n) || n < 0) throw new ApiError(400, `${k} must be a non-negative number.`);
         settings[k] = n;
-      } else if (typeof req.body[k] === 'boolean' || ['currencySymbol', 'businessName', 'businessAddress', 'businessPhone', 'receiptHeader', 'receiptFooter', 'taxLabel'].includes(k)) {
+      } else if (typeof req.body[k] === 'boolean' || ['currencySymbol', 'businessName', 'businessAddress', 'businessPhone', 'receiptHeader', 'receiptFooter', 'signatureText', 'taxLabel'].includes(k)) {
         settings[k] = req.body[k];
       } else {
         throw new ApiError(400, `Invalid value for ${k}.`);

@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Plus, HandCoins, Printer, Download, Droplets } from 'lucide-react';
+import { Plus, HandCoins, Printer, Download, Droplets, Share2 } from 'lucide-react';
 import api from '../api/client.js';
 import Modal from '../components/Modal.jsx';
 import { useToast } from '../context/ToastContext.jsx';
@@ -9,6 +9,7 @@ import Badge from '../components/Badge.jsx';
 import Pagination from '../components/Pagination.jsx';
 import { EmptyState, Spinner } from '../components/EmptyState.jsx';
 import { inr, fmtDate, fmtDateTime, PAY_METHOD_LABEL, PAY_METHODS, todayInput, exportCsv } from '../utils/format.js';
+import { buildReceiptHtml, buildReceiptNumber, formatMoney } from '../utils/receipt.mjs';
 
 export default function Payments() {
   const [rows, setRows] = useState([]);
@@ -332,103 +333,100 @@ function NewPayment({ open, preCustomer, onClose, onSaved }) {
 
 function ReceiptModal({ payment, onClose }) {
   const [settings, setSettings] = useState(null);
+  const { toast } = useToast();
 
   useEffect(() => {
     if (payment) api.get('/settings').then((d) => setSettings(d.settings)).catch(() => {});
   }, [payment]);
 
   const print = () => {
-    const lines = [
-      '<!DOCTYPE html><html><head><meta charset="utf-8"/><title>Receipt</title>',
-      '<style>',
-      'body{font-family:Inter,system-ui,sans-serif;color:#1e293b;margin:0;padding:24px}',
-      '.head{text-align:center;margin-bottom:16px;border-bottom:2px solid #1f7bf5;padding-bottom:12px}',
-      '.head h1{margin:0;font-size:20px}.head p{margin:2px 0;font-size:12px;color:#64748b}',
-      'h2{font-size:12px;letter-spacing:.15em;color:#94a3b8;text-align:center;text-transform:uppercase;margin:16px 0}',
-      '.amount{text-align:center;font-size:32px;font-weight:800;color:#059669;margin:4px 0 16px}',
-      'table{width:100%;border-collapse:collapse;font-size:13px}',
-      'td{padding:6px 4px;border-bottom:1px solid #e2e8f0}',
-      'td:nth-child(2){text-align:right;font-weight:600}',
-      '.hl td{border-bottom:2px solid #1e293b;font-weight:800}',
-      '.foot{text-align:center;font-size:12px;color:#94a3b8;margin-top:16px}',
-      '@media print{body{print-color-adjust:exact;-webkit-print-color-adjust:exact}}',
-      '</style></head><body>',
-      `<div class="head"><h1>${esc(settings?.businessName || 'Business Receipt')}</h1>`,
-      `<p>${esc(settings?.businessPhone || '')}</p>`,
-      `<p>${esc(settings?.businessAddress || '')}</p></div>`,
-      '<h2>Payment Receipt</h2>',
-      `<p class="amount">${inr(payment.amount)}</p>`,
-      '<table>',
-      row('Receipt No', `REC-${String(payment._id).slice(-6).toUpperCase()}`),
-      row('Customer', payment.customerId?.name),
-      row('Customer ID', payment.customerId?.customerId),
-      row('Date', fmtDateTime(payment.date)),
-      row('Method', PAY_METHOD_LABEL[payment.paymentMethod] || payment.paymentMethod),
-      row('Reference', payment.referenceId || '—'),
-      `<tr class="hl">${td('Previous Due')}${td(inr(payment.previousDue))}</tr>`,
-      `<tr>${td('Payment Received')}${td(inr(payment.amount))}</tr>`,
-      `<tr class="hl">${td('Remaining Due')}${td(inr(payment.remainingDue))}</tr>`,
-      '</table>',
-      `<div class="foot">${esc(settings?.receiptFooter || 'Thank you!')}</div>`,
-      '<script>window.onload=()=>window.print()</script>',
-      '</body></html>'
-    ].join('\n');
-    const w = window.open('', '_blank', 'width=420,height=640');
-    if (!w) return alert('Please allow pop-ups to print the receipt.');
-    w.document.write(lines);
+    const html = buildReceiptHtml(payment, settings || {});
+    const w = window.open('', '_blank', 'width=420,height=720');
+    if (!w) return alert('Please allow pop-ups to print the invoice.');
+    w.document.write(html);
     w.document.close();
     w.focus();
+    setTimeout(() => w.print(), 300);
   };
 
-  const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-  const row = (k, v) => `<tr><td>${esc(k)}</td><td>${esc(v)}</td></tr>`;
-  const td = (s) => `<td>${esc(s)}</td>`;
-
   const download = () => {
-    const l = ((settings?.receiptHeader || 'Business Receipt') + '\n').split('\n');
-    const lines = [
-      ...l.map((x) => x.trim()).filter(Boolean),
-      '------------------------------------------------',
-      `Receipt No: REC-${payment?._id?.slice(-6)?.toUpperCase() || ''}`,
-      `Date: ${fmtDateTime(payment?.date)}`,
-      `Customer: ${payment?.customerId?.name || ''} (${payment?.customerId?.customerId || ''})`,
-      `Previous Due: ${inr(payment?.previousDue)}`,
-      `Payment Received: ${inr(payment?.amount)}`,
-      `Remaining Due: ${inr(payment?.remainingDue)}`,
-      `Method: ${PAY_METHOD_LABEL[payment?.paymentMethod] || payment?.paymentMethod}`,
-      `Reference: ${payment?.referenceId || '—'}`,
-      '------------------------------------------------',
-      settings?.receiptFooter || 'Thank you!'
-    ];
-    const blob = new Blob([lines.join('\r\n')], { type: 'text/plain;charset=utf-8' });
+    if (!payment) return;
+    const html = buildReceiptHtml(payment, settings || {});
+    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `receipt-${payment?._id?.slice(-6)}.txt`;
+    a.download = `invoice-${buildReceiptNumber(payment?._id)}.html`;
+    document.body.appendChild(a);
     a.click();
+    a.remove();
     URL.revokeObjectURL(url);
+    toast('Invoice downloaded.', 'success');
+  };
+
+  const share = async () => {
+    if (!payment) return;
+    const shareText = [
+      `${settings?.businessName || 'Business Receipt'}`,
+      `Receipt: ${buildReceiptNumber(payment._id)}`,
+      `Customer: ${payment.customerId?.name || ''} (${payment.customerId?.customerId || ''})`,
+      `Amount: ${formatMoney(payment.amount)}`,
+      `Date: ${fmtDateTime(payment.date)}`,
+      `Method: ${PAY_METHOD_LABEL[payment.paymentMethod] || payment.paymentMethod}`,
+      `Reference: ${payment.referenceId || '—'}`,
+      `Previous Due: ${inr(payment.previousDue)}`,
+      `Remaining Due: ${inr(payment.remainingDue)}`,
+      settings?.receiptFooter || 'Thank you for your business!'
+    ].join('\n');
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `Invoice ${buildReceiptNumber(payment._id)}`,
+          text: shareText,
+          url: window.location.href
+        });
+        toast('Invoice shared.', 'success');
+        return;
+      } catch (err) {
+        if (err && err.name === 'AbortError') return;
+      }
+    }
+
+    if (navigator.clipboard?.writeText) {
+      try {
+        await navigator.clipboard.writeText(shareText);
+        toast('Invoice details copied to clipboard.', 'success');
+        return;
+      } catch (err) {
+        console.error('Clipboard copy failed', err);
+      }
+    }
+
+    download();
   };
 
   if (!payment) return null;
   return (
-    <Modal open={!!payment} onClose={onClose} title="Payment Receipt" size="sm"
+    <Modal open={!!payment} onClose={onClose} title="Payment Invoice" size="sm"
       footer={
         <>
           <button className="btn-secondary" onClick={print}><Printer className="w-4 h-4" /> Print</button>
-          <button className="btn-primary" onClick={download}><Download className="w-4 h-4" /> Download</button>
+          <button className="btn-secondary" onClick={download}><Download className="w-4 h-4" /> Download</button>
+          <button className="btn-primary" onClick={share}><Share2 className="w-4 h-4" /> Share</button>
           <button className="btn-ghost" onClick={onClose}>Close</button>
         </>
       }
     >
-      <div className="print-area border border-slate-200 rounded-lg p-5 text-center">
-        <div className="hidden print:block text-center mb-3">
-          <p className="text-lg font-extrabold">{settings?.businessName}</p>
-          <p className="text-xs">{settings?.businessPhone} {settings?.businessAddress}</p>
+      <div className="print-area border border-slate-200 rounded-lg p-5 text-center bg-white">
+        <div className="text-center mb-3">
+          <p className="text-lg font-extrabold text-slate-900">{settings?.businessName || 'Business Receipt'}</p>
+          <p className="text-[11px] text-slate-500">{settings?.businessPhone || ''} {settings?.businessAddress || ''}</p>
         </div>
-        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Payment Receipt</p>
+        <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Payment Invoice</p>
         <p className="mt-1 text-4xl font-extrabold text-emerald-600">{inr(payment.amount)}</p>
         <div className="text-left mt-4 space-y-1 text-sm">
-          <Row k="Receipt No" v={`REC-${String(payment._id).slice(-6).toUpperCase()}`} />
+          <Row k="Receipt No" v={buildReceiptNumber(payment._id)} />
           <Row k="Customer" v={payment.customerId?.name} />
           <Row k="Customer ID" v={payment.customerId?.customerId} />
           <Row k="Date" v={fmtDateTime(payment.date)} />
@@ -440,7 +438,11 @@ function ReceiptModal({ payment, onClose }) {
             <Row k="Remaining Due" v={inr(payment.remainingDue)} />
           </div>
         </div>
-        <p className="text-xs text-slate-400 mt-4">{settings?.receiptFooter}</p>
+        <div className="mt-5 grid grid-cols-2 gap-3 border-t border-slate-200 pt-3 text-[11px] text-slate-500">
+          <div className="border-t border-slate-400 pt-2 text-center">Customer Signature</div>
+          <div className="border-t border-slate-400 pt-2 text-center">{settings?.signatureText || 'Authorized Signatory'}</div>
+        </div>
+        <p className="text-xs text-slate-400 mt-4">{settings?.receiptFooter || 'Thank you for your business!'}</p>
       </div>
     </Modal>
   );

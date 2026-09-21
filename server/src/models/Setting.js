@@ -12,6 +12,7 @@ const settingSchema = new mongoose.Schema(
     allowRefillOverride: { type: Boolean, default: false },
     receiptHeader: { type: String, default: 'AquaPure Bottling Co. — Water Bottle Sales & Refill' },
     receiptFooter: { type: String, default: 'Thank you for your business!' },
+    signatureText: { type: String, default: 'Authorized Signatory' },
     taxLabel: { type: String, default: '' },
     taxRate: { type: Number, default: 0 },
     lowStockThreshold: { type: Number, default: 20 },
