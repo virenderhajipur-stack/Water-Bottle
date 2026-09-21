@@ -33,28 +33,30 @@ if (fs.existsSync(clientDist)) {
 app.use(notFound);
 app.use(errorHandler);
 
-const PORT = process.env.PORT || 5100;
-
-async function start() {
+async function bootstrap() {
   await connectDB();
   await ensureDefaults();
   await ensureInventory();
-  const server = app.listen(PORT, () => {
+}
+
+await bootstrap();
+
+// Only start a traditional listening server outside Vercel's serverless environment
+if (!process.env.VERCEL) {
+  const PORT = process.env.PORT || 5100;
+  app.listen(PORT, () => {
     console.log(`Water Bottle Management API running on http://localhost:${PORT}`);
   });
-  return server;
-}
 
-const server = await start();
-
-async function shutdown() {
-  try {
-    await disconnectDB();
-  } finally {
-    process.exit(0);
+  async function shutdown() {
+    try {
+      await disconnectDB();
+    } finally {
+      process.exit(0);
+    }
   }
+  process.on('SIGINT', shutdown);
+  process.on('SIGTERM', shutdown);
 }
-process.on('SIGINT', shutdown);
-process.on('SIGTERM', shutdown);
 
-export { app, server };
+export default app;
