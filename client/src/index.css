@@ -1,0 +1,85 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  @apply bg-slate-100 text-ink-700;
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer;
+  }
+  .btn-primary {
+    @apply btn bg-brand-600 text-white hover:bg-brand-700 shadow-sm;
+  }
+  .btn-secondary {
+    @apply btn bg-white border border-slate-300 text-ink-700 hover:bg-slate-50;
+  }
+  .btn-danger {
+    @apply btn bg-red-600 text-white hover:bg-red-700;
+  }
+  .btn-ghost {
+    @apply btn text-ink-500 hover:bg-slate-100;
+  }
+  .input {
+    @apply w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100 transition;
+  }
+
+  @media (max-width: 479px) {
+    .input, select.input {
+      font-size: 16px;
+    }
+  }
+  .label {
+    @apply block text-xs font-semibold text-ink-500 mb-1;
+  }
+  .card {
+    @apply bg-white rounded-xl shadow-sm border border-slate-200;
+  }
+  .chip {
+    @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold;
+  }
+  .th {
+    @apply px-3 py-2.5 text-left text-xs font-bold text-ink-500 uppercase tracking-wide whitespace-nowrap;
+  }
+  .td {
+    @apply px-3 py-2.5 text-sm text-ink-700 whitespace-nowrap;
+  }
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+@media print {
+  body {
+    background: white !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .print-area {
+    position: absolute;
+    inset: 0;
+    margin: 0;
+    border: 0;
+    box-shadow: none;
+  }
+  @page {
+    margin: 12mm;
+  }
+}
