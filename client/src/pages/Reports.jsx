@@ -29,7 +29,7 @@ export default function Reports() {
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
-            className={`px-3.5 py-2 rounded-lg text-sm font-bold whitespace-nowrap ${tab === t.key ? 'bg-brand-600 text-white' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+            className={`min-h-9 px-3.5 rounded-lg text-sm font-bold whitespace-nowrap border ${tab === t.key ? 'bg-brand-600 border-brand-600 text-white' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
           >
             {t.label}
           </button>
@@ -51,8 +51,8 @@ function ReportShell({ title, datePicker, onPrint, onExport, children, extras })
         <div className="flex items-center gap-2">{datePicker}</div>
         <div className="flex gap-2">
           {extras}
-          <button className="btn-secondary !py-1.5 text-xs" onClick={onExport}><Download className="w-4 h-4" /> Export</button>
-          <button className="btn-secondary !py-1.5 text-xs" onClick={onPrint}><Printer className="w-4 h-4" /> Print</button>
+          <button className="btn-secondary !min-h-9 !py-1.5 text-xs" onClick={onExport}><Download className="w-4 h-4" /> Export</button>
+          <button className="btn-secondary !min-h-9 !py-1.5 text-xs" onClick={onPrint}><Printer className="w-4 h-4" /> Print</button>
         </div>
       </div>
       <div className="print-area">
@@ -70,7 +70,7 @@ function SumGrid({ items }) {
     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
       {items.map((it) => (
         <div key={it.label} className="card p-4">
-          <p className="text-[11px] font-bold text-slate-400 uppercase">{it.label}</p>
+          <p className="text-xs font-bold text-slate-400">{it.label}</p>
           <p className="text-xl font-extrabold text-slate-900">{it.value}</p>
         </div>
       ))}

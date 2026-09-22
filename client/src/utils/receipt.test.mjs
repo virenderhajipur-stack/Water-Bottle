@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buildReceiptLines, buildReceiptNumber } from './receipt.mjs';
+import { buildReceiptLines, buildReceiptNumber, buildTransactionReceiptHtml } from './receipt.mjs';
 
 test('buildReceiptNumber includes invoice prefix', () => {
   assert.equal(buildReceiptNumber('abc123'), 'INV-ABC123');
@@ -31,4 +31,23 @@ test('buildReceiptLines includes customer and payment summary', () => {
   assert.ok(lines.some((line) => line.includes('₹1,250')));
   assert.ok(lines.some((line) => line.includes('Payment received')));
   assert.ok(lines.some((line) => line.includes('Manager Approval')));
+});
+
+test('buildTransactionReceiptHtml includes bottle sale details', () => {
+  const html = buildTransactionReceiptHtml({
+    _id: 'txn123',
+    transactionType: 'new_bottle',
+    customerId: { name: 'Raj Kumar', customerId: 'CUS-001' },
+    date: '2026-09-22T10:00:00.000Z',
+    quantity: 2,
+    unitPrice: 50,
+    totalAmount: 100,
+    paymentAmount: 50,
+    remainingDue: 50
+  });
+
+  assert.match(html, /New Bottle Invoice/);
+  assert.match(html, /Raj Kumar/);
+  assert.match(html, /2 bottles/);
+  assert.match(html, /Remaining Due/);
 });

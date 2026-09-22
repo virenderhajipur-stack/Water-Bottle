@@ -2,7 +2,7 @@ import mongoose from 'mongoose';
 import { asyncHandler, ApiError, getNextCustomerId, computeCustomerMoney, computeCustomerBottles } from '../utils/helpers.js';
 import { writeAudit } from '../services/auditService.js';
 import { getCustomerSummary } from '../services/calcService.js';
-import { applyInventoryDeltas, logInventory } from '../services/inventoryService.js';
+import { applyInventoryDeltas, logInventory, getInventorySnapshot } from '../services/inventoryService.js';
 
 const Customer = () => mongoose.model('Customer');
 const Transaction = () => mongoose.model('Transaction');
@@ -145,6 +145,13 @@ export const createCustomer = asyncHandler(async (req, res) => {
   if (!Number.isInteger(Number(openingBottleBalance)) || Number(openingBottleBalance) < 0) {
     throw new ApiError(400, 'Opening bottle balance must be a non-negative whole number.');
   }
+  const openingBottles = Number(openingBottleBalance);
+  if (openingBottles > 0) {
+    const inventory = await getInventorySnapshot();
+    if (inventory.storeEmpty < openingBottles) {
+      throw new ApiError(400, `Not enough empty bottles in store for this opening balance (need ${openingBottles}, only ${inventory.storeEmpty} available).`);
+    }
+  }
   const customerId = await getNextCustomerId();
   const customer = await Customer().create({
     customerId,
@@ -163,25 +170,25 @@ export const createCustomer = asyncHandler(async (req, res) => {
       customerId: customer._id,
       transactionType: 'opening',
       date: new Date(),
-      quantity: Number(openingBottleBalance),
-      filledBottlesGiven: Number(openingBottleBalance),
+      quantity: openingBottles,
+      filledBottlesGiven: openingBottles,
       emptyBottlesReturned: 0,
       unitPrice: 0,
       totalAmount: Number(openingBalance),
       paymentAmount: 0,
       remainingDue: Number(openingBalance),
-      notes: `Opening balance (money ₹${openingBalance}, bottles ${openingBottleBalance})`,
+      notes: `Opening balance (money ₹${openingBalance}, bottles ${openingBottles})`,
       createdBy: req.user._id,
-      meta: { moneyBalance: Number(openingBalance), bottleBalance: Number(openingBottleBalance) }
+      meta: { moneyBalance: Number(openingBalance), bottleBalance: openingBottles }
     });
-    if (Number(openingBottleBalance) > 0) {
-      await applyInventoryDeltas({ storeEmpty: -Number(openingBottleBalance) });
+    if (openingBottles > 0) {
+      await applyInventoryDeltas({ storeEmpty: -openingBottles });
       await logInventory({
         type: 'opening',
-        quantity: Number(openingBottleBalance),
+        quantity: openingBottles,
         customerId: customer._id,
-        storeEmptyDelta: -Number(openingBottleBalance),
-        customerDelta: Number(openingBottleBalance),
+        storeEmptyDelta: -openingBottles,
+        customerDelta: openingBottles,
         date: new Date(),
         source: 'store',
         notes: `Opening bottle balance for ${customer.name}`,

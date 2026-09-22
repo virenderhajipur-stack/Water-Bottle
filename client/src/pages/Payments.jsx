@@ -300,7 +300,7 @@ function NewPayment({ open, preCustomer, onClose, onSaved }) {
             <Droplets className="w-5 h-5 text-slate-300" />
           </div>
         )}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="label">Date</label>
             <input type="date" className="input" value={date} max={todayInput()} onChange={(e) => setDate(e.target.value)} />
@@ -310,7 +310,7 @@ function NewPayment({ open, preCustomer, onClose, onSaved }) {
             <input type="number" min="1" className="input !text-lg font-bold" value={amount} onChange={(e) => setAmount(e.target.value)} required />
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="label">Payment method *</label>
             <select className="input" value={method} onChange={(e) => setMethod(e.target.value)}>

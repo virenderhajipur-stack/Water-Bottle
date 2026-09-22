@@ -85,8 +85,8 @@ export default function Dashboard() {
           { to: '/payments', label: 'Receive Payment', icon: HandCoins },
           { to: '/inventory', label: isAdmin ? 'Bottle Adjustment' : 'Bottle Inventory', icon: Warehouse }
         ].map((b) => (
-          <Link key={b.label} to={b.to} className="bg-brand-600 text-white rounded-xl px-3 py-3 flex flex-col items-start gap-1 hover:bg-brand-700 transition-colors shadow-sm">
-            <b.icon className="w-5 h-5" />
+          <Link key={b.label} to={b.to} className="bg-white border border-brand-200 text-brand-700 rounded-lg px-3 py-2 flex flex-col items-start gap-0.5 hover:bg-brand-50 transition-colors">
+            <b.icon className="w-4 h-4" />
             <span className="text-xs font-bold">{b.label}</span>
           </Link>
         ))}
@@ -133,9 +133,7 @@ export default function Dashboard() {
       {/* Charts */}
       <div className="card p-4 sm:p-5">
         <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-          <h2 className="text-sm font-bold text-ink-900 flex items-center gap-2">
-            <TrendingUp className="w-5 h-5 shrink-0 text-brand-600" /> Daily Trend
-          </h2>
+          <h2 className="text-sm font-bold text-ink-900">Daily Trend</h2>
           <div className="flex items-center gap-1">
             {RANGES.map((r) => (
               <button
@@ -183,12 +181,9 @@ export default function Dashboard() {
         </div>
         <div className="card p-4">
           <h3 className="font-bold text-ink-900 mb-3 text-sm">Daily Details</h3>
-          <div className="text-sm flex flex-col gap-3">
-            <Row label="Today's New Bottle Sales" value={inr(money.todayNewBottle)} sub={`${money.todayNewBottleQty} bottles`} />
-            <Row label="Today's Refill Sales" value={inr(money.todayRefill)} sub={`${money.todayRefillQty} refills`} />
+          <div className="text-sm flex flex-col gap-2">
             <Row label="Empty Returns Today" value={`${money.todayEmptyReturns} bottles`} />
             <Row label="Credit / Udhaar Created Today" value={inr(money.todayCredit)} />
-            <Row label="Total Outstanding" value={inr(totalDue)} />
           </div>
         </div>
       </div>
@@ -198,7 +193,7 @@ export default function Dashboard() {
 
 function Row({ label, value, sub }) {
   return (
-    <div className="flex items-center justify-between gap-3 border-b border-slate-100 last:border-0 pb-2.5 last:pb-0 leading-relaxed">
+    <div className="flex items-center justify-between gap-3 border-b border-slate-100 last:border-0 pb-2 last:pb-0 leading-snug">
       <span className="text-ink-700">{label}</span>
       <div className="text-right">
         <p className="font-bold text-ink-900">{value}</p>

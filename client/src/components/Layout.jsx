@@ -45,7 +45,7 @@ export default function Layout() {
           <p className="text-xs text-white/70">Bottles · Refill · Udhaar</p>
         </div>
       </div>
-      <nav className="flex-1 px-3 space-y-1 overflow-y-auto pb-4">
+      <nav className="flex-none max-h-[calc(100vh-220px)] px-3 space-y-1 overflow-y-auto pb-4">
         {navItems.map((item) => (
           <NavLink
             key={item.to}
@@ -121,7 +121,7 @@ export default function Layout() {
       <main className="flex-1 flex flex-col min-w-0">
         <div className="no-print hidden lg:block bg-white border-b border-slate-200 sticky top-0 z-30">
           <div className="max-w-6xl mx-auto px-5 py-3 flex items-center justify-end gap-4">
-            <div className="w-80">
+            <div className="w-80 self-center">
               <GlobalSearch />
             </div>
             <button className="relative p-2 rounded-lg text-ink-500 hover:bg-slate-100" title="Notifications">

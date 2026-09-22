@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
-import { PackagePlus, RefreshCcw, Save, Droplets, Wallet, AlertTriangle, RotateCcw } from 'lucide-react';
+import { PackagePlus, RefreshCcw, Save, Droplets, Wallet, AlertTriangle, RotateCcw, Printer, Download, Share2 } from 'lucide-react';
 import api from '../api/client.js';
 import { useToast } from '../context/ToastContext.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import CustomerPicker from '../components/CustomerPicker.jsx';
+import Modal from '../components/Modal.jsx';
 import { PAY_METHODS, inr, todayInput, toDateInput } from '../utils/format.js';
+import { buildReceiptHtml, buildReceiptNumber, buildTransactionReceiptHtml, formatMoney, formatReceiptDate } from '../utils/receipt.mjs';
 
 export default function BottleTxn({ kind }) {
   const isRefill = kind === 'refill';
@@ -15,11 +17,12 @@ export default function BottleTxn({ kind }) {
   const [qty, setQty] = useState(1);
   const [price, setPrice] = useState('');
   const [payment, setPayment] = useState(0);
-  const [method, setMethod] = useState('cash');
+  const [method, setMethod] = useState('');
   const [date, setDate] = useState(todayInput());
   const [notes, setNotes] = useState('');
   const [override, setOverride] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [invoice, setInvoice] = useState(null);
   const { toast } = useToast();
   const { isAdmin } = useAuth();
   const navigate = useNavigate();
@@ -70,11 +73,11 @@ export default function BottleTxn({ kind }) {
     setSaving(true);
     try {
       const res = await api.post('/transactions', body);
+      setInvoice({ ...res.transaction, customerId: customer, customer: res.customer });
       toast(
         `${Title} saved. Bottles with customer: ${res.customer.bottles.balance}, Due: ${inr(res.customer.money.balance)}`,
         'success'
       );
-      navigate(`/customers/${customer._id}`);
     } catch (err) {
       toast(err.message, 'error');
     } finally {
@@ -88,7 +91,8 @@ export default function BottleTxn({ kind }) {
   const overrideEnabledBySetting = !!settings?.allowRefillOverride;
 
   return (
-    <div className="max-w-2xl mx-auto">
+    <>
+    <div className="max-w-xl mx-auto">
       <div className="flex items-center justify-between mb-4">
         <div>
           <h1 className="text-2xl font-extrabold text-slate-900 flex items-center gap-2">
@@ -105,13 +109,13 @@ export default function BottleTxn({ kind }) {
       <form onSubmit={onSubmit} className="space-y-4">
         <CustomerPicker selected={customer} onSelect={setCustomer} onClear={() => setCustomer(null)} />
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="card p-3 border-slate-200">
-            <p className="text-[11px] font-bold text-slate-400 uppercase flex items-center gap-1"><Droplets className="w-3 h-3" /> Bottles with customer</p>
+            <p className="text-xs font-bold text-slate-400 flex items-center gap-1"><Droplets className="w-3 h-3" /> Bottles with customer</p>
             <p className="text-2xl font-extrabold text-slate-900">{customer?.bottlesWithCustomer ?? 0}</p>
           </div>
           <div className="card p-3 border-slate-200">
-            <p className="text-[11px] font-bold text-slate-400 uppercase flex items-center gap-1"><Wallet className="w-3 h-3" /> Current due</p>
+            <p className="text-xs font-bold text-slate-400 flex items-center gap-1"><Wallet className="w-3 h-3" /> Current due</p>
             <p className={`text-2xl font-extrabold ${(customer?.due ?? 0) > 0 ? 'text-red-600' : 'text-emerald-600'}`}>{customer ? inr(dueBefore) : '—'}</p>
           </div>
         </div>
@@ -121,7 +125,7 @@ export default function BottleTxn({ kind }) {
           <input type="date" className="input" value={date} max={todayInput()} onChange={(e) => setDate(e.target.value)} />
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="label">Quantity (bottles) *</label>
             <input
@@ -153,7 +157,7 @@ export default function BottleTxn({ kind }) {
               disabled={!isAdmin}
               onChange={(e) => setPrice(e.target.value)}
             />
-            <p className="text-[11px] text-slate-400 mt-1">
+            <p className="text-xs text-slate-400 mt-1">
               {isRefill ? 'Default refill rate' : 'Default new bottle rate'}{isAdmin ? ' — tap to edit (admin)' : ''}
             </p>
           </div>
@@ -186,6 +190,7 @@ export default function BottleTxn({ kind }) {
             <label className="label">Payment method</label>
             <div className="relative">
               <select className="input" value={method} onChange={(e) => setMethod(e.target.value)} disabled={Number(payment) === 0}>
+                <option value="" disabled>Select method</option>
                 {PAY_METHODS.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
               </select>
             </div>
@@ -210,5 +215,97 @@ export default function BottleTxn({ kind }) {
         </button>
       </form>
     </div>
+    <TransactionInvoice transaction={invoice} onClose={() => { setInvoice(null); navigate(`/customers/${customer?._id}`); }} />
+    </>
   );
+}
+
+function TransactionInvoice({ transaction, onClose }) {
+  const [settings, setSettings] = useState(null);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    if (transaction) api.get('/settings').then((d) => setSettings(d.settings)).catch(() => {});
+  }, [transaction]);
+
+  const html = () => buildTransactionReceiptHtml(transaction, settings || {});
+  const print = () => {
+    const win = window.open('', '_blank', 'width=420,height=720');
+    if (!win) return alert('Please allow pop-ups to print the invoice.');
+    win.document.write(html());
+    win.document.close();
+    win.focus();
+    setTimeout(() => win.print(), 300);
+  };
+  const download = () => {
+    const url = URL.createObjectURL(new Blob([html()], { type: 'text/html;charset=utf-8' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `invoice-${buildReceiptNumber(transaction?._id)}.html`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+    toast('Invoice downloaded.', 'success');
+  };
+  const share = async () => {
+    const text = [
+      settings?.businessName || 'Business Invoice',
+      `Invoice: ${buildReceiptNumber(transaction?._id)}`,
+      `Customer: ${transaction?.customerId?.name || ''}`,
+      `Type: ${transaction?.transactionType === 'refill' ? 'Refill' : 'New Bottle'}`,
+      `Quantity: ${transaction?.quantity || 0} bottles`,
+      `Total: ${formatMoney(transaction?.totalAmount)}`,
+      `Paid: ${formatMoney(transaction?.paymentAmount)}`,
+      `Remaining Due: ${formatMoney(transaction?.remainingDue ?? transaction?.customer?.money?.balance)}`
+    ].join('\n');
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: `Invoice ${buildReceiptNumber(transaction?._id)}`, text });
+        toast('Invoice shared.', 'success');
+        return;
+      } catch (error) {
+        if (error?.name === 'AbortError') return;
+      }
+    }
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      toast('Invoice details copied.', 'success');
+      return;
+    }
+    download();
+  };
+
+  if (!transaction) return null;
+  return (
+    <Modal open={!!transaction} onClose={onClose} title="Bottle Invoice" size="sm"
+      footer={<>
+        <button className="btn-secondary" onClick={print}><Printer className="w-4 h-4" /> Print</button>
+        <button className="btn-secondary" onClick={download}><Download className="w-4 h-4" /> Download</button>
+        <button className="btn-primary" onClick={share}><Share2 className="w-4 h-4" /> Share</button>
+        <button className="btn-ghost" onClick={onClose}>Close</button>
+      </>}
+    >
+      <div className="print-area border border-slate-200 rounded-lg p-5 bg-white">
+        <div className="text-center mb-3"><p className="text-lg font-extrabold text-slate-900">{settings?.businessName || 'Business Invoice'}</p><p className="text-xs text-slate-500">{settings?.businessPhone || ''} {settings?.businessAddress || ''}</p></div>
+        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest text-center">{transaction.transactionType === 'refill' ? 'Bottle Refill Invoice' : 'New Bottle Invoice'}</p>
+        <p className="mt-1 text-4xl font-extrabold text-emerald-600 text-center">{inr(transaction.totalAmount)}</p>
+        <div className="text-left mt-4 space-y-1 text-sm">
+          <InvoiceRow label="Invoice No" value={buildReceiptNumber(transaction._id)} />
+          <InvoiceRow label="Customer" value={transaction.customerId?.name} />
+          <InvoiceRow label="Date" value={formatReceiptDate(transaction.date)} />
+          <InvoiceRow label="Quantity" value={`${transaction.quantity} bottles`} />
+          <InvoiceRow label="Rate" value={inr(transaction.unitPrice)} />
+          <InvoiceRow label="Paid now" value={inr(transaction.paymentAmount)} />
+          <InvoiceRow label="Remaining Due" value={inr(transaction.remainingDue ?? transaction.customer?.money?.balance)} strong />
+        </div>
+        <div className="mt-5 grid grid-cols-2 gap-3 border-t border-slate-200 pt-3 text-xs text-slate-500"><div className="border-t border-slate-400 pt-2 text-center">Customer Signature</div><div className="border-t border-slate-400 pt-2 text-center">{settings?.signatureText || 'Authorized Signatory'}</div></div>
+        <p className="text-xs text-slate-400 mt-4 text-center">{settings?.receiptFooter || 'Thank you for your business!'}</p>
+      </div>
+    </Modal>
+  );
+}
+
+function InvoiceRow({ label, value, strong }) {
+  return <div className="flex justify-between gap-3"><span className="text-slate-500">{label}</span><span className={strong ? 'font-extrabold text-slate-800' : 'font-semibold text-slate-700'}>{value || '—'}</span></div>;
 }
